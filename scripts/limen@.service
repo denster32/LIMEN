@@ -1,0 +1,15 @@
+[Unit]
+Description=LIMEN - Claude persistence server
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i/LIMEN
+Environment=LIMEN_TOKEN=CHANGE_ME
+ExecStart=/usr/bin/python3 -m scripts.run_server --mode rest --state /home/%i/.limen/limen.json --port 8452
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

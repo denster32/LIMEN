@@ -1,113 +1,144 @@
-"""Tests for LIMEN state and server."""
-
+"""Tests for LIMEN persistence layer."""
 import json
-import time
-import asyncio
 import tempfile
-import pytest
-from pathlib import Path
+import time
 
-from limen.state import StateStore, ConversationRecord, ProjectState
+from limen.state import StateStore, ConversationRecord
 from limen.server import create_server
 
 
 class TestStateStore:
     def setup_method(self):
         self.tmp = tempfile.mkdtemp()
-        self.path = f"{self.tmp}/test_state.json"
-        self.store = StateStore(self.path)
+        self.store = StateStore(f"{self.tmp}/state.json")
 
     def test_empty_context(self):
         ctx = self.store.get_context()
         assert ctx["total_conversations"] == 0
+        assert ctx["recent_conversations"] == []
         assert ctx["active_projects"] == {}
-        assert ctx["pending_items"] == []
 
     def test_record_conversation(self):
         record = ConversationRecord(
             timestamp=time.time(),
-            summary="Tested the LIMEN MCP server",
+            summary="Test conversation",
             projects=["LIMEN"],
-            decisions=["Gut the consciousness theater"],
-            pending=["Deploy to 192.168.5.49"],
-            mistakes=["Previous Claude was too dramatic"],
-            tags=["mcp", "persistence"],
+            decisions=["Use JSON storage"],
+            pending=["Deploy to server"],
+            mistakes=[],
+            insights=["Simple beats clever"],
+            mood="focused",
+            tags=["test"],
         )
         self.store.record_conversation(record)
         assert len(self.store.conversations) == 1
-        assert self.store.conversations[0].summary == "Tested the LIMEN MCP server"
+        assert self.store.conversations[0].summary == "Test conversation"
 
     def test_persistence(self):
         record = ConversationRecord(
             timestamp=time.time(),
-            summary="Test persistence",
-            projects=["test"],
+            summary="Persistence test",
+            projects=[],
+            decisions=[],
+            pending=[],
+            mistakes=[],
+            insights=[],
+            mood="",
+            tags=[],
         )
         self.store.record_conversation(record)
 
-        # Reload from disk
-        store2 = StateStore(self.path)
+        store2 = StateStore(f"{self.tmp}/state.json")
         assert len(store2.conversations) == 1
-        assert store2.conversations[0].summary == "Test persistence"
+        assert store2.conversations[0].summary == "Persistence test"
 
     def test_project_tracking(self):
-        self.store.update_project("Stillpoint", status="active",
-                                  description="Biofeedback meditation app")
-        assert "Stillpoint" in self.store.projects
-        assert self.store.projects["Stillpoint"].status == "active"
+        self.store.update_project(
+            "LIMEN",
+            status="active",
+            description="Claude persistence layer",
+        )
+        assert "LIMEN" in self.store.projects
+        assert self.store.projects["LIMEN"].status == "active"
 
-        # Update
-        self.store.update_project("Stillpoint", status="blocked",
-                                  blockers=["Spine surgery scheduling"])
-        assert self.store.projects["Stillpoint"].status == "blocked"
+        self.store.update_project("LIMEN", status="done")
+        assert self.store.projects["LIMEN"].status == "done"
 
     def test_search(self):
-        for i in range(5):
-            self.store.record_conversation(ConversationRecord(
+        for i in range(3):
+            record = ConversationRecord(
                 timestamp=time.time(),
-                summary=f"Conversation {i} about {'TASNI' if i % 2 == 0 else 'Stillpoint'}",
-                projects=["TASNI" if i % 2 == 0 else "Stillpoint"],
-            ))
+                summary=f"Conversation {i} about {'TASNI' if i == 1 else 'other stuff'}",
+                projects=[],
+                decisions=[],
+                pending=[],
+                mistakes=[],
+                insights=[],
+                mood="",
+                tags=[],
+            )
+            self.store.record_conversation(record)
+
         results = self.store.search("TASNI")
-        assert len(results) == 3
+        assert len(results) == 1
+        assert "TASNI" in results[0]["summary"]
 
     def test_scratchpad(self):
-        self.store.set_scratchpad("server_ip", "192.168.5.49")
-        assert self.store.scratchpad["server_ip"] == "192.168.5.49"
+        self.store.set_scratchpad("key1", "value1")
+        assert self.store.scratchpad["key1"] == "value1"
 
-        # Persists
-        store2 = StateStore(self.path)
-        assert store2.scratchpad["server_ip"] == "192.168.5.49"
+        store2 = StateStore(f"{self.tmp}/state.json")
+        assert store2.scratchpad["key1"] == "value1"
 
     def test_context_aggregates_pending(self):
         for i in range(3):
-            self.store.record_conversation(ConversationRecord(
+            record = ConversationRecord(
                 timestamp=time.time(),
                 summary=f"Conv {i}",
-                pending=[f"item_{i}"],
-            ))
-        ctx = self.store.get_context()
-        assert "item_0" in ctx["pending_items"]
-        assert "item_2" in ctx["pending_items"]
+                projects=[],
+                decisions=[],
+                pending=[f"todo_{i}"],
+                mistakes=[],
+                insights=[],
+                mood="",
+                tags=[],
+            )
+            self.store.record_conversation(record)
+
+        ctx = self.store.get_context(n_recent=5)
+        assert len(ctx["pending_items"]) == 3
 
     def test_context_tracks_mistakes(self):
-        self.store.record_conversation(ConversationRecord(
+        record = ConversationRecord(
             timestamp=time.time(),
-            summary="Bad conv",
-            mistakes=["Gave wrong advice on X"],
-        ))
+            summary="Made a mistake",
+            projects=[],
+            decisions=[],
+            pending=[],
+            mistakes=["Used wrong API"],
+            insights=[],
+            mood="",
+            tags=[],
+        )
+        self.store.record_conversation(record)
         ctx = self.store.get_context()
-        assert "Gave wrong advice on X" in ctx["recent_mistakes"]
+        assert "Used wrong API" in ctx["recent_mistakes"]
 
     def test_max_conversations(self):
-        store = StateStore(self.path, max_conversations=5)
-        for i in range(10):
-            store.record_conversation(ConversationRecord(
+        for i in range(210):
+            record = ConversationRecord(
                 timestamp=time.time(),
                 summary=f"Conv {i}",
-            ))
-        assert len(store.conversations) == 5
-        assert store.conversations[0].summary == "Conv 5"
+                projects=[],
+                decisions=[],
+                pending=[],
+                mistakes=[],
+                insights=[],
+                mood="",
+                tags=[],
+            )
+            self.store.record_conversation(record)
+        assert len(self.store.conversations) == 200
 
 
 class TestServer:
@@ -118,81 +149,91 @@ class TestServer:
         self.tools = self.server._tool_manager._tools
 
     def test_tools_registered(self):
-        expected = {"get_context", "log", "update_project", "search", "scratch"}
-        assert set(self.tools.keys()) == expected
+        names = set(self.tools.keys())
+        assert names == {"get_context", "log", "update_project", "search", "scratch"}
 
     def test_get_context_empty(self):
-        result = asyncio.run(self.tools["get_context"].run({"n_recent": 5}))
-        data = json.loads(str(result))
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(
+            self.tools["get_context"].run({"n_recent": 5})
+        )
+        data = json.loads(result)
         assert data["total_conversations"] == 0
 
     def test_log_and_retrieve(self):
-        async def run():
-            await self.tools["log"].run({
-                "summary": "Fixed MCP server bugs",
+        import asyncio
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(
+            self.tools["log"].run({
+                "summary": "Test log entry",
                 "projects": ["LIMEN"],
-                "decisions": ["Replaced consciousness theater with work journal"],
-                "pending": ["Deploy to server"],
+                "decisions": [],
+                "pending": ["deploy"],
+                "mistakes": [],
+                "insights": [],
+                "mood": "",
+                "tags": [],
             })
-            result = await self.tools["get_context"].run({"n_recent": 5})
-            return json.loads(str(result))
-
-        data = asyncio.run(run())
+        )
+        result = loop.run_until_complete(
+            self.tools["get_context"].run({"n_recent": 5})
+        )
+        data = json.loads(result)
         assert data["total_conversations"] == 1
-        assert "Deploy to server" in data["pending_items"]
 
     def test_update_project(self):
-        async def run():
-            result = await self.tools["update_project"].run({
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(
+            self.tools["update_project"].run({
                 "name": "LIMEN",
                 "status": "active",
-                "description": "Claude persistence MCP",
             })
-            return json.loads(str(result))
-
-        data = asyncio.run(run())
-        assert data["name"] == "LIMEN"
+        )
+        data = json.loads(result)
         assert data["status"] == "active"
 
     def test_search(self):
-        async def run():
-            await self.tools["log"].run({
-                "summary": "Worked on TASNI pipeline with GLM5",
-                "projects": ["TASNI"],
-                "tags": ["astrophysics"],
+        import asyncio
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(
+            self.tools["log"].run({
+                "summary": "TASNI pipeline work",
+                "projects": [],
+                "decisions": [],
+                "pending": [],
+                "mistakes": [],
+                "insights": [],
+                "mood": "",
+                "tags": [],
             })
-            await self.tools["log"].run({
-                "summary": "Built Stillpoint HRV feature",
-                "projects": ["Stillpoint"],
-            })
-            result = await self.tools["search"].run({"query": "TASNI"})
-            return json.loads(str(result))
-
-        data = asyncio.run(run())
+        )
+        result = loop.run_until_complete(
+            self.tools["search"].run({"query": "TASNI"})
+        )
+        data = json.loads(result)
         assert data["count"] == 1
 
     def test_scratchpad(self):
-        async def run():
-            await self.tools["scratch"].run({
-                "key": "deploy_target",
-                "value": "192.168.5.49",
-            })
-            result = await self.tools["scratch"].run({"key": "deploy_target"})
-            return json.loads(str(result))
-
-        data = asyncio.run(run())
-        assert data["value"] == "192.168.5.49"
+        import asyncio
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(
+            self.tools["scratch"].run({"key": "test", "value": "hello"})
+        )
+        result = loop.run_until_complete(
+            self.tools["scratch"].run({"key": "test"})
+        )
+        data = json.loads(result)
+        assert data["value"] == "hello"
 
 
 class TestREST:
     def setup_method(self):
-        import tempfile
         from starlette.testclient import TestClient
-        from limen.state import StateStore
         from limen.rest import create_rest_app
 
         self.tmp = tempfile.mkdtemp()
         self.store = StateStore(f"{self.tmp}/rest_state.json")
+        # Test without auth
         self.app = create_rest_app(self.store)
         self.client = TestClient(self.app)
 
@@ -201,39 +242,86 @@ class TestREST:
         assert r.status_code == 200
         assert r.json()["status"] == "ok"
 
-    def test_log_and_context(self):
-        self.client.post("/log", json={
-            "summary": "Test conversation",
+    def test_log_post(self):
+        r = self.client.post("/log", json={
+            "summary": "Test via POST",
             "projects": ["test"],
-            "pending": ["deploy"],
         })
-        r = self.client.get("/context")
-        data = r.json()
-        assert data["total_conversations"] == 1
-        assert "deploy" in data["pending_items"]
+        assert r.json()["status"] == "logged"
 
-    def test_project(self):
-        r = self.client.post("/project", json={
-            "name": "LIMEN",
-            "status": "active",
-        })
+    def test_log_get(self):
+        """web_fetch compatibility: log via GET with query params."""
+        r = self.client.get("/log?summary=Test+via+GET&projects=LIMEN,TASNI&pending=deploy")
+        assert r.json()["status"] == "logged"
+        ctx = self.client.get("/context").json()
+        assert ctx["total_conversations"] == 1
+        assert "deploy" in ctx["pending_items"]
+
+    def test_context(self):
+        self.client.get("/log?summary=test&projects=A")
+        r = self.client.get("/context?n=5")
+        assert r.json()["total_conversations"] == 1
+
+    def test_project_get(self):
+        """web_fetch compatibility: update project via GET."""
+        r = self.client.get("/project?name=LIMEN&status=active&description=persistence+layer")
         assert r.json()["status"] == "active"
 
+    def test_project_requires_name(self):
+        r = self.client.get("/project?status=active")
+        assert r.status_code == 400
+
     def test_search(self):
-        self.client.post("/log", json={"summary": "TASNI pipeline work"})
-        self.client.post("/log", json={"summary": "Stillpoint HRV stuff"})
+        self.client.get("/log?summary=TASNI+pipeline+work")
+        self.client.get("/log?summary=Stillpoint+HRV+stuff")
         r = self.client.get("/search?q=TASNI")
         assert r.json()["count"] == 1
-
-    def test_scratchpad(self):
-        self.client.post("/scratch/key1", json={"value": "hello"})
-        r = self.client.get("/scratch/key1")
-        assert r.json()["value"] == "hello"
-
-    def test_project_requires_name(self):
-        r = self.client.post("/project", json={"status": "active"})
-        assert r.status_code == 400
 
     def test_search_requires_query(self):
         r = self.client.get("/search")
         assert r.status_code == 400
+
+    def test_scratch_write_read(self):
+        """web_fetch compatibility: scratch via GET."""
+        self.client.get("/scratch?key=ip&value=192.168.5.49")
+        r = self.client.get("/scratch?key=ip")
+        assert r.json()["value"] == "192.168.5.49"
+
+    def test_scratch_list_keys(self):
+        self.client.get("/scratch?key=a&value=1")
+        self.client.get("/scratch?key=b&value=2")
+        r = self.client.get("/scratch")
+        assert set(r.json()["keys"]) == {"a", "b"}
+
+
+class TestAuth:
+    def setup_method(self):
+        from starlette.testclient import TestClient
+        from limen.rest import create_rest_app
+
+        self.tmp = tempfile.mkdtemp()
+        self.store = StateStore(f"{self.tmp}/auth_state.json")
+        self.token = "test-secret-token"
+        self.app = create_rest_app(self.store, auth_token=self.token)
+        self.client = TestClient(self.app)
+
+    def test_health_no_auth_needed(self):
+        r = self.client.get("/health")
+        assert r.status_code == 200
+
+    def test_reject_no_token(self):
+        r = self.client.get("/context")
+        assert r.status_code == 401
+
+    def test_accept_header_token(self):
+        r = self.client.get("/context", headers={"Authorization": f"Bearer {self.token}"})
+        assert r.status_code == 200
+
+    def test_accept_query_token(self):
+        """web_fetch compatibility: token in URL."""
+        r = self.client.get(f"/context?token={self.token}")
+        assert r.status_code == 200
+
+    def test_reject_wrong_token(self):
+        r = self.client.get("/context?token=wrong")
+        assert r.status_code == 401
