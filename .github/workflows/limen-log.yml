@@ -12,59 +12,58 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Parse and commit
-        run: |
-          python3 << 'EOF'
-          import json, os, datetime
-          
-          body = os.environ.get("ISSUE_BODY", "")
-          title = os.environ.get("ISSUE_TITLE", "").replace("LIMEN: ", "", 1)
-          
-          # Parse structured fields from issue body
-          fields = {"summary": title, "projects": [], "decisions": [], 
-                    "pending": [], "mistakes": [], "insights": []}
-          
-          current_field = None
-          for line in body.split("\n"):
-              line = line.strip()
-              if line.lower().startswith("projects:"):
-                  fields["projects"] = [x.strip() for x in line.split(":", 1)[1].split(",") if x.strip()]
-              elif line.lower().startswith("decisions:"):
-                  fields["decisions"] = [x.strip() for x in line.split(":", 1)[1].split(",") if x.strip()]
-              elif line.lower().startswith("pending:"):
-                  fields["pending"] = [x.strip() for x in line.split(":", 1)[1].split(",") if x.strip()]
-              elif line.lower().startswith("mistakes:"):
-                  fields["mistakes"] = [x.strip() for x in line.split(":", 1)[1].split(",") if x.strip()]
-              elif line.lower().startswith("insights:"):
-                  fields["insights"] = [x.strip() for x in line.split(":", 1)[1].split(",") if x.strip()]
-          
-          fields["timestamp"] = datetime.datetime.now(datetime.UTC).isoformat() + "Z"
-          
-          with open("state/limen.json", "r") as f:
-              state = json.load(f)
-          
-          state["conversations"].append(fields)
-          state["conversations"] = state["conversations"][-200:]
-          state["last_saved"] = fields["timestamp"]
-          
-          with open("state/limen.json", "w") as f:
-              json.dump(state, f, indent=2)
-          
-          print(f"Logged: {fields['summary']}")
-          EOF
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
-      
+        run: |
+          python3 -c "
+import json, os, datetime
+
+title = os.environ.get('ISSUE_TITLE', '').replace('LIMEN: ', '', 1)
+body = os.environ.get('ISSUE_BODY', '')
+
+entry = {
+    'timestamp': datetime.datetime.now(datetime.UTC).isoformat() + 'Z',
+    'summary': title,
+    'projects': [], 'decisions': [], 'pending': [],
+    'mistakes': [], 'insights': []
+}
+
+for line in body.split('\n'):
+    line = line.strip()
+    for field in ['projects', 'decisions', 'pending', 'mistakes', 'insights']:
+        if line.lower().startswith(field + ':'):
+            entry[field] = [x.strip() for x in line.split(':', 1)[1].split(',') if x.strip()]
+
+with open('state/limen.json') as f:
+    state = json.load(f)
+
+state['log'].append(entry)
+state['log'] = state['log'][-200:]
+state['meta']['total_conversations'] = len(state['log'])
+state['meta']['last_saved'] = entry['timestamp']
+
+# Add any new pending items
+for p in entry.get('pending', []):
+    if p not in state['pending']:
+        state['pending'].append(p)
+
+with open('state/limen.json', 'w') as f:
+    json.dump(state, f, indent=2)
+
+print(f'Logged: {title}')
+"
       - name: Commit
         run: |
           git config user.name "LIMEN"
           git config user.email "limen@users.noreply.github.com"
           git add state/limen.json
-          git commit -m "LIMEN: ${{ github.event.issue.title }}"
+          git commit -m "log: ${{ github.event.issue.title }}"
           git push
-      
       - name: Close issue
-        run: gh issue close ${{ github.event.issue.number }} --comment "Logged to memory."
+        run: gh issue close ${{ github.event.issue.number }} --comment "Logged."
         env:
           GH_TOKEN: ${{ github.token }}
