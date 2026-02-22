@@ -1,5 +1,21 @@
 {
-  "conversations": [
+  "brief": "Combat vet, electrical engineer, Indiana. Building AI tools and recovering. Overengineers everything \u2014 then catches himself. Keep it simple.",
+  "active": {
+    "LIMEN": "AI persistence via GitHub JSON. Just got it working. Don't add servers.",
+    "Stillpoint": "34.5k line Swift meditation app. HRV biofeedback via Apple Watch.",
+    "TASNI": "Thermal anomaly search for non-communicating intelligence. GLM5 runs it autonomously."
+  },
+  "pending": [
+    "Test LIMEN from fresh Claude conversation",
+    "Test LIMEN from ChatGPT",
+    "Clone LIMEN locally on Mac"
+  ],
+  "avoid": [
+    "Overengineering. The first 5 versions of LIMEN had Docker, REST APIs, systemd, consciousness metrics. The answer was a JSON file.",
+    "Therapeutic filler. Be direct.",
+    "Treating momentum as fragile. He's on track."
+  ],
+  "log": [
     {
       "timestamp": "2026-02-22T23:48:47.906180Z",
       "summary": "Rebuilt LIMEN from 1243-line server to a JSON file on GitHub. No Docker, no server, no deployment. Just a file at a URL.",
@@ -23,12 +39,10 @@
       ]
     }
   ],
-  "projects": {
-    "LIMEN": {
-      "status": "active",
-      "description": "AI persistence via GitHub-hosted JSON"
-    }
-  },
-  "scratchpad": {},
-  "last_saved": "2026-02-22T23:48:47.906244Z"
+  "scratch": {},
+  "meta": {
+    "version": 2,
+    "total_conversations": 1,
+    "last_saved": "2026-02-22T23:56:16.912428+00:00Z"
+  }
 }
