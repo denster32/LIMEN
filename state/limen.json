@@ -1,5 +1,5 @@
 {
-  "brief": "Combat vet, electrical engineer, Indiana. Building AI tools and recovering. Overengineers everything \u2014 then catches himself. Keep it simple.",
+  "brief": "Combat vet, electrical engineer, Indiana. Building AI tools (LIMEN, Stillpoint, TASNI) and recovering. Hates overengineering. Keep it simple. Don't build servers when a file works.",
   "active": {
     "LIMEN": "AI persistence via GitHub JSON. Just got it working. Don't add servers.",
     "Stillpoint": "34.5k line Swift meditation app. HRV biofeedback via Apple Watch.",
@@ -8,7 +8,7 @@
   "pending": [
     "Test LIMEN from fresh Claude conversation",
     "Test LIMEN from ChatGPT",
-    "Clone LIMEN locally on Mac"
+    "Test GitHub Action issue-to-log"
   ],
   "avoid": [
     "Overengineering. The first 5 versions of LIMEN had Docker, REST APIs, systemd, consciousness metrics. The answer was a JSON file.",
@@ -37,12 +37,39 @@
       "insights": [
         "Simplest version is a file at a URL"
       ]
+    },
+    {
+      "timestamp": "2026-02-22T23:57:18.607112+00:00Z",
+      "summary": "Built LIMEN v2. Killed 1243 lines of server code. Final form: JSON on GitHub + MEMORY.md brief (211 tokens) + two GitHub Actions (issue-to-log, state-to-brief). No server, no Docker, no deployment. Any AI reads one URL.",
+      "projects": [
+        "LIMEN"
+      ],
+      "decisions": [
+        "GitHub is the entire infrastructure \u2014 storage, compute (Actions), CDN (raw.githubusercontent)",
+        "MEMORY.md is a compressed brief, not a data dump",
+        "State has layers: brief (wisdom), active (projects), avoid (anti-patterns), log (raw)",
+        "Write path: GitHub API (direct) or Issue (any AI that can browse)"
+      ],
+      "pending": [
+        "Test from fresh Claude conversation \u2014 does it read MEMORY.md and pick up context?",
+        "Test from ChatGPT \u2014 paste URL, see if it reads and logs",
+        "Test GitHub Action \u2014 create issue, verify it commits to state"
+      ],
+      "mistakes": [
+        "v0.1-v0.4: built Docker, REST, MCP, systemd, consciousness metrics. Answer was 0 lines of server code.",
+        "Didn't question 'deploy' framing early enough. No deploy needed when GitHub IS the server."
+      ],
+      "insights": [
+        "Best infrastructure is infrastructure someone else runs. GitHub has storage, compute, CDN, auth, and API. Use it.",
+        "MEMORY.md should be optimized for AI context windows. 200 tokens > 2000 tokens.",
+        "Separate wisdom (brief) from data (log). AIs read the brief. Log is for reference."
+      ]
     }
   ],
   "scratch": {},
   "meta": {
     "version": 2,
-    "total_conversations": 1,
-    "last_saved": "2026-02-22T23:56:16.912428+00:00Z"
+    "total_conversations": 2,
+    "last_saved": "2026-02-22T23:57:18.607130+00:00Z"
   }
 }
