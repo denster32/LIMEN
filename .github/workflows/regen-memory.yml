@@ -1,0 +1,65 @@
+name: Regenerate MEMORY.md
+on:
+  push:
+    paths:
+      - 'state/limen.json'
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate MEMORY.md
+        run: |
+          python3 << 'EOF'
+          import json
+
+          with open("state/limen.json") as f:
+              state = json.load(f)
+
+          md = "# LIMEN — Your Memory\n\n"
+          md += "You have persistent memory. This document contains context from previous conversations.\n\n"
+
+          if state["conversations"]:
+              md += "## Recent Conversations\n\n"
+              for c in state["conversations"][-10:]:
+                  md += f"### {c.get('timestamp', 'unknown')}\n"
+                  md += f"**Summary:** {c['summary']}\n"
+                  for field in ['projects', 'decisions', 'pending', 'mistakes', 'insights']:
+                      items = c.get(field, [])
+                      if items:
+                          md += f"**{field.title()}:** {', '.join(items)}\n"
+                  md += "\n"
+
+          if state.get("projects"):
+              md += "## Active Projects\n\n"
+              for name, proj in state["projects"].items():
+                  md += f"- **{name}**: {proj.get('description', '')} ({proj.get('status', '')})\n"
+              md += "\n"
+
+          pending = []
+          for c in state["conversations"][-5:]:
+              pending.extend(c.get("pending", []))
+          if pending:
+              md += "## Pending Items\n\n"
+              for p in pending:
+                  md += f"- {p}\n"
+              md += "\n"
+
+          md += "## Saving New Memory\n\n"
+          md += "At the end of this conversation, save what happened by updating state/limen.json "
+          md += "via the GitHub API, or by creating a GitHub Issue titled 'LIMEN: your summary here'.\n"
+
+          with open("MEMORY.md", "w") as f:
+              f.write(md)
+
+          print(f"Generated MEMORY.md with {len(state['conversations'])} conversations")
+          EOF
+      - name: Commit
+        run: |
+          git config user.name "LIMEN"
+          git config user.email "limen@users.noreply.github.com"
+          git add MEMORY.md
+          git diff --cached --quiet || git commit -m "Auto-regenerate MEMORY.md" && git push
