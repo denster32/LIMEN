@@ -1,45 +1,24 @@
-# LIMEN — Your Memory
+# Memory
 
-You have persistent memory. This file contains context from previous conversations and instructions for saving new context.
+Combat vet, electrical engineer, Indiana. Building AI tools and recovering. Overengineers everything — then catches himself. Keep it simple.
 
-## Previous Conversations
+## Working On
+- **LIMEN** — AI persistence via GitHub JSON. Just got it working. Don't add servers.
+- **Stillpoint** — 34.5k line Swift meditation app. HRV biofeedback via Apple Watch.
+- **TASNI** — Thermal anomaly search for non-communicating intelligence. GLM5 runs it autonomously.
 
-### 2026-02-22T23:48:47.906180Z
-**Summary:** Rebuilt LIMEN from 1243-line server to a JSON file on GitHub. No Docker, no server, no deployment. Just a file at a URL.
-**Projects:** LIMEN
-**Decisions:** GitHub is the database, Any AI that can fetch a URL gets persistence
-**Pending:** Test from ChatGPT, Test from fresh Claude conversation, Dennis needs to update memory with working URL
-**Mistakes to avoid:** v0.1-v0.5 overengineered with Docker, REST, MCP, systemd, consciousness metrics
-**Insights:** Simplest version is a file at a URL
+## Pending
+- Test LIMEN from fresh Claude conversation
+- Test LIMEN from ChatGPT
+- Clone LIMEN locally on Mac
 
-## Active Projects
+## Don't
+- Overengineering. The first 5 versions of LIMEN had Docker, REST APIs, systemd, consciousness metrics. The answer was a JSON file.
+- Therapeutic filler. Be direct.
+- Treating momentum as fragile. He's on track.
 
-- **LIMEN**: AI persistence via GitHub-hosted JSON (status: active)
+## Last Session
+Rebuilt LIMEN from 1243-line server to a JSON file on GitHub. No Docker, no server, no deployment. Just a file at a URL.
 
-## Pending Items
-
-- Test from ChatGPT
-- Test from fresh Claude conversation
-- Dennis needs to update memory with working URL
-
-## How to Save Memory
-
-At the end of this conversation, save what happened by telling the user:
-
-"I'll save this to your LIMEN memory."
-
-Then update the state file at:
-`PUT https://api.github.com/repos/denster32/LIMEN/contents/state/limen.json`
-
-The state is JSON. Add a new entry to the `conversations` array with:
-- timestamp (ISO 8601)
-- summary (what happened)  
-- projects (list of project names touched)
-- decisions (list of decisions made)
-- pending (list of action items going forward)
-- mistakes (list of things to avoid next time)
-- insights (list of key realizations)
-
-You need the current SHA of the file to update it. Read it first, then write back with the SHA.
-
-Authorization: Bearer token from the user's configuration.
+---
+*Updated 2026-02-22. Full log: state/limen.json. Write back via GitHub API or issue titled `LIMEN: summary`.*
