@@ -1,37 +1,7 @@
-# Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.egg-info/
-dist/
-build/
-*.egg
-
-# Virtual environments
 .venv/
-venv/
-env/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
 .DS_Store
-Thumbs.db
-
-# Results (regeneratable)
-results/
-results_large/
-*.json
-!mcp_config.json
-!pyproject.toml
-
-# State persistence
-state/
-
-# Temporary
-dashboard_data.json
-.pytest_cache/
+.idea/
+.vscode/
+*.swp
