@@ -1,6 +1,34 @@
 {
-  "conversations": [],
-  "projects": {},
+  "conversations": [
+    {
+      "timestamp": "2026-02-22T23:48:47.906180Z",
+      "summary": "Rebuilt LIMEN from 1243-line server to a JSON file on GitHub. No Docker, no server, no deployment. Just a file at a URL.",
+      "projects": [
+        "LIMEN"
+      ],
+      "decisions": [
+        "GitHub is the database",
+        "Any AI that can fetch a URL gets persistence"
+      ],
+      "pending": [
+        "Test from ChatGPT",
+        "Test from fresh Claude conversation",
+        "Dennis needs to update memory with working URL"
+      ],
+      "mistakes": [
+        "v0.1-v0.5 overengineered with Docker, REST, MCP, systemd, consciousness metrics"
+      ],
+      "insights": [
+        "Simplest version is a file at a URL"
+      ]
+    }
+  ],
+  "projects": {
+    "LIMEN": {
+      "status": "active",
+      "description": "AI persistence via GitHub-hosted JSON"
+    }
+  },
   "scratchpad": {},
-  "last_saved": null
+  "last_saved": "2026-02-22T23:48:47.906244Z"
 }
