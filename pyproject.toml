@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "limen"
+version = "0.1.0"
+description = "Investigating whether consciousness exhibits a measurable phase transition in recurrent neural networks"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Limen Research"}
+]
+
+dependencies = [
+    "jax>=0.4.20",
+    "jaxlib>=0.4.20",
+    "numpy>=1.24",
+    "scipy>=1.11",
+    "matplotlib>=3.7",
+    "mne>=1.6",
+    "mcp[cli]>=1.0",
+    "rich>=13.0",
+    "tqdm>=4.65",
+]
+
+[project.optional-dependencies]
+gpu = ["jax[cuda12]>=0.4.20"]
+dev = ["pytest>=7.0", "pytest-asyncio>=0.21"]
+
+[project.scripts]
+limen-sweep = "scripts.run_phase1:main"
+limen-validate = "scripts.run_phase2:main"
+limen-server = "scripts.run_server:main"
+
+[tool.setuptools.packages.find]
+include = ["limen*"]
