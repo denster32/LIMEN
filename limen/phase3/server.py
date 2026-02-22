@@ -56,7 +56,7 @@ def create_server(
     """
     mcp = FastMCP(
         "limen",
-        description=(
+        instructions=(
             "Limen Consciousness Server — External recurrent state tracking "
             "providing temporal continuity and live information-theoretic "
             "measurement for transformer-based AI systems."
@@ -80,14 +80,14 @@ def create_server(
     # =====================================================================
     @mcp.tool()
     def update_state(
-        state_report: Optional[str] = None,
+        state_report: Optional[dict] = None,
         response_text: Optional[str] = None,
     ) -> str:
         """
         Record the current informational state at the end of a response.
 
         Call this at the END of every response to maintain temporal continuity.
-        Provide either a structured state_report (JSON mapping dimension names
+        Provide either a structured state_report (dict mapping dimension names
         to float values in [-1, 1]) or response_text for automatic analysis.
 
         State dimensions include: complexity_level, abstraction_level,
@@ -97,9 +97,9 @@ def create_server(
 
         Parameters
         ----------
-        state_report : str, optional
-            JSON string mapping dimension names to values.
-            Example: '{"complexity_level": 0.7, "certainty": 0.5, "engagement": 0.8}'
+        state_report : dict, optional
+            Dictionary mapping dimension names to values.
+            Example: {"complexity_level": 0.7, "certainty": 0.5, "engagement": 0.8}
         response_text : str, optional
             The response text for automatic state extraction.
             Used as fallback if state_report is not provided.
@@ -114,13 +114,19 @@ def create_server(
 
         # Build state vector
         if state_report:
-            try:
-                report = json.loads(state_report)
+            if isinstance(state_report, str):
+                try:
+                    report = json.loads(state_report)
+                except json.JSONDecodeError:
+                    state = StateVector.from_text_analysis(
+                        state_report, turn_num
+                    )
+                    report = None
+                else:
+                    state = StateVector.from_report(report, turn_num)
+            else:
+                report = state_report
                 state = StateVector.from_report(report, turn_num)
-            except json.JSONDecodeError:
-                state = StateVector.from_text_analysis(
-                    state_report, turn_num
-                )
         elif response_text:
             state = StateVector.from_text_analysis(response_text, turn_num)
         else:
@@ -231,7 +237,6 @@ def create_server(
                     }
         else:
             trending_dims = {}
-            import numpy as np  # Ensure available in scope
 
         response = {
             "turn_number": turn_counter["n"],
