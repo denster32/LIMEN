@@ -6,10 +6,32 @@ MCP persistence server for Claude. Cross-conversation memory that tracks what ma
 
 No consciousness metrics. No phase transitions. Just memory.
 
+## Vision
+
+Every Claude instance — Desktop, Code, claude.ai, mobile — should have persistent local memory. LIMEN is the first step. Currently supports Claude Desktop and Claude Code via MCP stdio transport. Remote transport and broader client support are on the roadmap.
+
+## Current Support
+
+| Client | Status | Transport |
+|--------|--------|-----------|
+| Claude Desktop | ✅ Works | stdio (local MCP) |
+| Claude Code / Cursor | ✅ Works | stdio (local MCP) |
+| claude.ai | ❌ Not yet | No user MCP support — manual context paste as workaround |
+| Claude mobile | ❌ Not yet | No user MCP support |
+
+## Roadmap
+
+- [ ] **HTTP/SSE transport** — Run LIMEN as a remote server on local network or VPS, enabling any MCP-capable client to connect
+- [ ] **Context export** — Generate a paste-ready context block for claude.ai conversations
+- [ ] **Multi-instance sync** — Multiple Claude clients writing to the same state file with conflict resolution
+- [ ] **Auto-log** — Reduce friction by inferring conversation records from context rather than requiring explicit `log` calls
+
 ## Install
 
 ```
-pip install -e .
+git clone https://github.com/denster32/LIMEN.git
+cd LIMEN
+pip install mcp
 ```
 
 ## Run
@@ -18,20 +40,27 @@ pip install -e .
 python -m scripts.run_server --state ./state/limen.json
 ```
 
-## Claude Desktop Config
+## Claude Desktop Setup
 
-Add to your Claude Desktop MCP settings:
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
 
 ```json
 {
   "mcpServers": {
     "limen": {
-      "command": "python",
-      "args": ["-m", "scripts.run_server", "--state", "/path/to/state/limen.json"]
+      "command": "python3",
+      "args": ["-m", "scripts.run_server", "--state", "/path/to/state/limen.json"],
+      "cwd": "/path/to/LIMEN"
     }
   }
 }
 ```
+
+Restart Claude Desktop after editing.
+
+## Claude Code / Cursor Setup
+
+Add to your MCP config or run the server and point your client at it.
 
 ## Tools
 
@@ -60,3 +89,7 @@ state/limen.json
 ```
 pytest tests/
 ```
+
+## License
+
+LGPL-2.1
