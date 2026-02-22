@@ -114,7 +114,7 @@ class TestServer:
     def setup_method(self):
         self.tmp = tempfile.mkdtemp()
         self.path = f"{self.tmp}/server_state.json"
-        self.server = create_server(state_path=self.path)
+        self.server, self.store = create_server(state_path=self.path)
         self.tools = self.server._tool_manager._tools
 
     def test_tools_registered(self):
@@ -182,3 +182,58 @@ class TestServer:
 
         data = asyncio.run(run())
         assert data["value"] == "192.168.5.49"
+
+
+class TestREST:
+    def setup_method(self):
+        import tempfile
+        from starlette.testclient import TestClient
+        from limen.state import StateStore
+        from limen.rest import create_rest_app
+
+        self.tmp = tempfile.mkdtemp()
+        self.store = StateStore(f"{self.tmp}/rest_state.json")
+        self.app = create_rest_app(self.store)
+        self.client = TestClient(self.app)
+
+    def test_health(self):
+        r = self.client.get("/health")
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+    def test_log_and_context(self):
+        self.client.post("/log", json={
+            "summary": "Test conversation",
+            "projects": ["test"],
+            "pending": ["deploy"],
+        })
+        r = self.client.get("/context")
+        data = r.json()
+        assert data["total_conversations"] == 1
+        assert "deploy" in data["pending_items"]
+
+    def test_project(self):
+        r = self.client.post("/project", json={
+            "name": "LIMEN",
+            "status": "active",
+        })
+        assert r.json()["status"] == "active"
+
+    def test_search(self):
+        self.client.post("/log", json={"summary": "TASNI pipeline work"})
+        self.client.post("/log", json={"summary": "Stillpoint HRV stuff"})
+        r = self.client.get("/search?q=TASNI")
+        assert r.json()["count"] == 1
+
+    def test_scratchpad(self):
+        self.client.post("/scratch/key1", json={"value": "hello"})
+        r = self.client.get("/scratch/key1")
+        assert r.json()["value"] == "hello"
+
+    def test_project_requires_name(self):
+        r = self.client.post("/project", json={"status": "active"})
+        assert r.status_code == 400
+
+    def test_search_requires_query(self):
+        r = self.client.get("/search")
+        assert r.status_code == 400

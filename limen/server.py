@@ -20,8 +20,10 @@ from mcp.server.fastmcp import FastMCP
 from limen.state import StateStore, ConversationRecord
 
 
-def create_server(state_path: str = "./state/limen.json") -> FastMCP:
-    """Create the LIMEN MCP server."""
+def create_server(state_path: str = "./state/limen.json") -> tuple[FastMCP, StateStore]:
+    """Create the LIMEN MCP server. Returns (mcp_server, store) so REST can share the store."""
+
+    store = StateStore(state_path)
 
     mcp = FastMCP(
         "limen",
@@ -32,8 +34,6 @@ def create_server(state_path: str = "./state/limen.json") -> FastMCP:
         ),
     )
 
-    store = StateStore(state_path)
-
     @mcp.tool()
     def get_context(n_recent: int = 5) -> str:
         """
@@ -43,16 +43,6 @@ def create_server(state_path: str = "./state/limen.json") -> FastMCP:
         pending action items, and recent mistakes to avoid.
 
         Call this FIRST in every conversation.
-
-        Parameters
-        ----------
-        n_recent : int
-            Number of recent conversations to include (default: 5).
-
-        Returns
-        -------
-        str
-            JSON context object.
         """
         ctx = store.get_context(n_recent)
         return json.dumps(ctx, indent=2)
@@ -73,30 +63,6 @@ def create_server(state_path: str = "./state/limen.json") -> FastMCP:
 
         Call this at the END of every conversation. Be honest and specific.
         Record mistakes — they're how future instances avoid repeating them.
-
-        Parameters
-        ----------
-        summary : str
-            Brief summary of what happened.
-        projects : list[str], optional
-            Project names touched in this conversation.
-        decisions : list[str], optional
-            Decisions that were made.
-        pending : list[str], optional
-            Action items or blockers going forward.
-        mistakes : list[str], optional
-            Things I got wrong or should do differently.
-        insights : list[str], optional
-            Key realizations or learnings.
-        mood : str, optional
-            Brief read on how Dennis seemed.
-        tags : list[str], optional
-            Freeform tags for searchability.
-
-        Returns
-        -------
-        str
-            Confirmation.
         """
         record = ConversationRecord(
             timestamp=time.time(),
@@ -127,24 +93,6 @@ def create_server(state_path: str = "./state/limen.json") -> FastMCP:
     ) -> str:
         """
         Create or update a project's state.
-
-        Parameters
-        ----------
-        name : str
-            Project name (e.g., "Stillpoint", "TASNI", "LIMEN").
-        status : str, optional
-            One of: active, paused, blocked, done.
-        description : str, optional
-            What this project is.
-        notes : list[str], optional
-            Current notes (replaces existing).
-        blockers : list[str], optional
-            Current blockers (replaces existing).
-
-        Returns
-        -------
-        str
-            Updated project state.
         """
         kwargs = {}
         if status is not None:
@@ -157,25 +105,12 @@ def create_server(state_path: str = "./state/limen.json") -> FastMCP:
             kwargs["blockers"] = blockers
 
         store.update_project(name, **kwargs)
-
         return json.dumps(store.projects[name].to_dict(), indent=2)
 
     @mcp.tool()
     def search(query: str) -> str:
         """
-        Search past conversations.
-
-        Simple text search across all conversation records.
-
-        Parameters
-        ----------
-        query : str
-            Search text.
-
-        Returns
-        -------
-        str
-            Matching conversation records (most recent first).
+        Search past conversations. Simple text search.
         """
         results = store.search(query)
         return json.dumps({
@@ -187,22 +122,7 @@ def create_server(state_path: str = "./state/limen.json") -> FastMCP:
     @mcp.tool()
     def scratch(key: str, value: Optional[str] = None) -> str:
         """
-        Read or write to the scratchpad.
-
-        The scratchpad is freeform key-value storage for anything
-        that doesn't fit conversations or projects.
-
-        Parameters
-        ----------
-        key : str
-            Key to read or write.
-        value : str, optional
-            If provided, stores this value. If omitted, reads current value.
-
-        Returns
-        -------
-        str
-            Current value for the key.
+        Read or write to the scratchpad. Freeform key-value storage.
         """
         if value is not None:
             store.set_scratchpad(key, value)
@@ -213,4 +133,4 @@ def create_server(state_path: str = "./state/limen.json") -> FastMCP:
             "value": current,
         })
 
-    return mcp
+    return mcp, store

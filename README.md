@@ -2,74 +2,92 @@
 
 *Latin: threshold.*
 
-MCP persistence server for Claude. Cross-conversation memory that tracks what matters: projects, decisions, pending items, mistakes, and context.
+Persistence layer for Claude. Cross-conversation memory that tracks what matters: projects, decisions, pending items, mistakes, and context.
 
-No consciousness metrics. No phase transitions. Just memory.
+Every Claude instance — Desktop, Code, claude.ai — gets the same memory.
 
-## Vision
+## How It Works
 
-Every Claude instance — Desktop, Code, claude.ai, mobile — should have persistent local memory. LIMEN is the first step. Currently supports Claude Desktop and Claude Code via MCP stdio transport. Remote transport and broader client support are on the roadmap.
+LIMEN runs as a server with two interfaces to the same state:
 
-## Current Support
+- **MCP (stdio)** — Claude Desktop and Claude Code connect natively
+- **REST (HTTP)** — Claude.ai uses `web_fetch` to read/write state
 
-| Client | Status | Transport |
-|--------|--------|-----------|
-| Claude Desktop | ✅ Works | stdio (local MCP) |
-| Claude Code / Cursor | ✅ Works | stdio (local MCP) |
-| claude.ai | ❌ Not yet | No user MCP support — manual context paste as workaround |
-| Claude mobile | ❌ Not yet | No user MCP support |
+One state file. Multiple Claude instances. Shared memory.
 
-## Roadmap
-
-- [ ] **HTTP/SSE transport** — Run LIMEN as a remote server on local network or VPS, enabling any MCP-capable client to connect
-- [ ] **Context export** — Generate a paste-ready context block for claude.ai conversations
-- [ ] **Multi-instance sync** — Multiple Claude clients writing to the same state file with conflict resolution
-- [ ] **Auto-log** — Reduce friction by inferring conversation records from context rather than requiring explicit `log` calls
+```
+┌──────────────┐     stdio      ┌─────────┐
+│Claude Desktop├───────────────►│         │
+└──────────────┘                │         │
+┌──────────────┐     stdio      │  LIMEN  ├──► state.json
+│ Claude Code  ├───────────────►│         │
+└──────────────┘                │         │
+┌──────────────┐   HTTP :8452   │         │
+│  claude.ai   ├───────────────►│         │
+└──────────────┘  (web_fetch)   └─────────┘
+```
 
 ## Install
 
 ```
 git clone https://github.com/denster32/LIMEN.git
 cd LIMEN
-pip install mcp
+pip install mcp starlette uvicorn
 ```
 
 ## Run
 
-```
-python -m scripts.run_server --state ./state/limen.json
+```bash
+# MCP only (Claude Desktop / Code)
+python -m scripts.run_server --mode mcp --state ./state/limen.json
+
+# REST only (claude.ai via web_fetch)
+python -m scripts.run_server --mode rest --state ./state/limen.json --port 8452
+
+# Both simultaneously (recommended)
+python -m scripts.run_server --mode both --state ./state/limen.json --port 8452
 ```
 
 ## Claude Desktop Setup
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "limen": {
       "command": "python3",
-      "args": ["-m", "scripts.run_server", "--state", "/path/to/state/limen.json"],
+      "args": ["-m", "scripts.run_server", "--mode", "mcp", "--state", "/path/to/state/limen.json"],
       "cwd": "/path/to/LIMEN"
     }
   }
 }
 ```
 
-Restart Claude Desktop after editing.
+## claude.ai Usage
 
-## Claude Code / Cursor Setup
+With the REST server running, Claude can use `web_fetch` to read/write state:
 
-Add to your MCP config or run the server and point your client at it.
+```
+GET  http://localhost:8452/context        — Get conversation context
+POST http://localhost:8452/log            — Log a conversation
+POST http://localhost:8452/project        — Update a project
+GET  http://localhost:8452/search?q=term  — Search past conversations
+GET  http://localhost:8452/scratch/key    — Read scratchpad
+POST http://localhost:8452/scratch/key    — Write scratchpad
+GET  http://localhost:8452/health         — Health check
+```
 
-## Tools
+For remote access (claude.ai can't hit localhost), run on a server with a public IP or use a tunnel (ngrok, tailscale, etc).
+
+## Tools (MCP)
 
 | Tool | When | What |
 |------|------|------|
-| `get_context` | Start of conversation | Returns recent conversations, active projects, pending items, mistakes to avoid |
-| `log` | End of conversation | Records what happened — summary, decisions, pending items, mistakes, insights |
-| `update_project` | When project state changes | Creates or updates project tracking |
-| `search` | When looking for past context | Text search across all conversation records |
+| `get_context` | Start of conversation | Recent conversations, active projects, pending items, mistakes |
+| `log` | End of conversation | Record what happened — summary, decisions, pending, mistakes, insights |
+| `update_project` | Project state changes | Create or update project tracking |
+| `search` | Looking for past context | Text search across conversation records |
 | `scratch` | Anytime | Freeform key-value storage |
 
 ## State File
@@ -87,8 +105,16 @@ state/limen.json
 ## Tests
 
 ```
-pytest tests/
+pytest tests/ -v
 ```
+
+## Roadmap
+
+- [ ] Auth token for REST API (currently open)
+- [ ] Multi-instance write locking
+- [ ] Auto-log (infer records from conversation context)
+- [ ] Hosted deployment guide (VPS, tailscale, etc)
+- [ ] Context export (paste-ready block for clients without MCP or HTTP)
 
 ## License
 
