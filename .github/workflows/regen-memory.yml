@@ -1,8 +1,7 @@
 name: Regenerate MEMORY.md
 on:
   push:
-    paths:
-      - 'state/limen.json'
+    paths: ['state/limen.json']
 
 jobs:
   regen:
@@ -11,55 +10,51 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Generate MEMORY.md
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate
         run: |
-          python3 << 'EOF'
-          import json
+          python3 -c "
+import json
 
-          with open("state/limen.json") as f:
-              state = json.load(f)
+with open('state/limen.json') as f:
+    s = json.load(f)
 
-          md = "# LIMEN — Your Memory\n\n"
-          md += "You have persistent memory. This document contains context from previous conversations.\n\n"
+md = '# Memory\n\n'
+md += s.get('brief', '') + '\n\n'
 
-          if state["conversations"]:
-              md += "## Recent Conversations\n\n"
-              for c in state["conversations"][-10:]:
-                  md += f"### {c.get('timestamp', 'unknown')}\n"
-                  md += f"**Summary:** {c['summary']}\n"
-                  for field in ['projects', 'decisions', 'pending', 'mistakes', 'insights']:
-                      items = c.get(field, [])
-                      if items:
-                          md += f"**{field.title()}:** {', '.join(items)}\n"
-                  md += "\n"
+if s.get('active'):
+    md += '## Working On\n'
+    for name, desc in s['active'].items():
+        md += f'- **{name}** — {desc}\n'
+    md += '\n'
 
-          if state.get("projects"):
-              md += "## Active Projects\n\n"
-              for name, proj in state["projects"].items():
-                  md += f"- **{name}**: {proj.get('description', '')} ({proj.get('status', '')})\n"
-              md += "\n"
+if s.get('pending'):
+    md += '## Pending\n'
+    for p in s['pending']:
+        md += f'- {p}\n'
+    md += '\n'
 
-          pending = []
-          for c in state["conversations"][-5:]:
-              pending.extend(c.get("pending", []))
-          if pending:
-              md += "## Pending Items\n\n"
-              for p in pending:
-                  md += f"- {p}\n"
-              md += "\n"
+if s.get('avoid'):
+    md += '## Don\'t\n'
+    for a in s['avoid']:
+        md += f'- {a}\n'
+    md += '\n'
 
-          md += "## Saving New Memory\n\n"
-          md += "At the end of this conversation, save what happened by updating state/limen.json "
-          md += "via the GitHub API, or by creating a GitHub Issue titled 'LIMEN: your summary here'.\n"
+if s.get('log'):
+    last = s['log'][-1]
+    md += f'## Last Session\n{last["summary"]}\n\n'
 
-          with open("MEMORY.md", "w") as f:
-              f.write(md)
+md += '---\n'
+md += f'*Updated {s["meta"]["last_saved"][:10]}. Full log: state/limen.json.*\n'
 
-          print(f"Generated MEMORY.md with {len(state['conversations'])} conversations")
-          EOF
+with open('MEMORY.md', 'w') as f:
+    f.write(md)
+print(f'Generated: {len(md)} chars')
+"
       - name: Commit
         run: |
           git config user.name "LIMEN"
           git config user.email "limen@users.noreply.github.com"
           git add MEMORY.md
-          git diff --cached --quiet || git commit -m "Auto-regenerate MEMORY.md" && git push
+          git diff --cached --quiet || (git commit -m "auto: regenerate MEMORY.md" && git push)
