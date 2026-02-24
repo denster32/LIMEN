@@ -7,6 +7,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from scripts.state_integrity import normalize_iso8601, verify_integrity
+
 ROOT = Path(__file__).resolve().parents[1]
 STATE_PATH = ROOT / "state" / "limen.json"
 
@@ -20,24 +22,17 @@ REQUIRED_TOP_LEVEL = {
     "meta": dict,
 }
 
+REQUIRED_META_FIELDS = ("version", "total_conversations", "human_id", "agent_id", "session_id")
+
 
 def _assert(condition: bool, message: str) -> None:
     if not condition:
         raise ValueError(message)
 
 
-def _normalize_iso8601(value: str) -> str:
-    normalized = value
-    if normalized.endswith("Z") and ("+" in normalized[10:] or "-" in normalized[10:]):
-        normalized = normalized[:-1]
-    if normalized.endswith("Z"):
-        normalized = normalized[:-1] + "+00:00"
-    return normalized
-
-
 def _validate_timestamp(value: str, label: str) -> None:
     try:
-        datetime.fromisoformat(_normalize_iso8601(value))
+        datetime.fromisoformat(normalize_iso8601(value))
     except ValueError as exc:
         raise ValueError(f"{label} must be valid ISO-8601: {value}") from exc
 
@@ -65,12 +60,21 @@ def validate_state(state: dict) -> None:
         _validate_timestamp(entry["timestamp"], f"log[{i}].timestamp")
 
     meta = state["meta"]
-    _assert("version" in meta and isinstance(meta["version"], int), "meta.version must be an integer")
-    _assert("total_conversations" in meta and isinstance(meta["total_conversations"], int), "meta.total_conversations must be int")
+    for field in REQUIRED_META_FIELDS:
+        _assert(field in meta, f"meta.{field} is required")
+        if field == "total_conversations":
+            _assert(isinstance(meta[field], int), "meta.total_conversations must be int")
+        elif field == "version":
+            _assert(isinstance(meta[field], int), "meta.version must be int")
+        else:
+            _assert(isinstance(meta[field], str) and meta[field].strip(), f"meta.{field} must be non-empty string")
+
     _assert(meta["total_conversations"] >= len(log_entries), "meta.total_conversations must be >= len(log)")
     if "last_saved" in meta:
         _assert(isinstance(meta["last_saved"], str), "meta.last_saved must be a string")
         _validate_timestamp(meta["last_saved"], "meta.last_saved")
+
+    verify_integrity(state)
 
 
 def main() -> int:

@@ -1,10 +1,13 @@
-.PHONY: validate sync-memory test check
+.PHONY: validate sync-memory test check reconcile-journal
 
 validate:
-	python3 scripts/validate_state.py
+	python3 -m scripts.validate_state
 
 sync-memory:
-	python3 scripts/sync_memory.py
+	python3 -m scripts.sync_memory
+
+reconcile-journal:
+	python3 -m scripts.local_journal reconcile
 
 test:
 	python3 -m unittest discover -s tests -q
