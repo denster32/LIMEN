@@ -3,13 +3,11 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-STATE_PATH = ROOT / "state" / "limen.json"
-MEMORY_PATH = ROOT / "MEMORY.md"
+from scripts.state_ops import load_state
+
+ROOT_NOTE = "Full log: state/limen.json. Write back via GitHub API or issue titled `LIMEN: summary`."
 
 
 def _fmt_date(iso_timestamp: str | None) -> str:
@@ -43,36 +41,28 @@ def render_memory(state: dict) -> str:
         lines.append("- (none)")
 
     lines += ["", "## Pending"]
-    if pending:
-        lines.extend(f"- {item}" for item in pending)
-    else:
-        lines.append("- (none)")
+    lines.extend(f"- {item}" for item in pending) if pending else lines.append("- (none)")
 
     lines += ["", "## Don't"]
-    if avoid:
-        lines.extend(f"- {item}" for item in avoid)
-    else:
-        lines.append("- (none)")
+    lines.extend(f"- {item}" for item in avoid) if avoid else lines.append("- (none)")
 
     lines += ["", "## Last Session"]
-    if logs:
-        lines.append(str(logs[-1].get("summary", "No summary available.")))
-    else:
-        lines.append("No sessions recorded.")
+    lines.append(str(logs[-1].get("summary", "No summary available.")) if logs else "No sessions recorded.")
 
     lines += [
         "",
         "---",
-        f"*Updated {_fmt_date(meta.get('last_saved'))}. Full log: state/limen.json. Write back via GitHub API or issue titled `LIMEN: summary`.*",
+        f"*Updated {_fmt_date(meta.get('last_saved'))}. {ROOT_NOTE}*",
         "",
     ]
-
     return "\n".join(lines)
 
 
 def main() -> int:
-    state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
-    MEMORY_PATH.write_text(render_memory(state), encoding="utf-8")
+    state = load_state()
+    from pathlib import Path
+
+    (Path(__file__).resolve().parents[1] / "MEMORY.md").write_text(render_memory(state), encoding="utf-8")
     return 0
 
 
