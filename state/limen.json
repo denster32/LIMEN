@@ -36,7 +36,8 @@
       ],
       "insights": [
         "Simplest version is a file at a URL"
-      ]
+      ],
+      "entry_hash": "77ebef2ca9d718941a48bfb043ade071e77d806b53b7d47133fe712192ed69bf"
     },
     {
       "timestamp": "2026-02-22T23:57:18.607112+00:00Z",
@@ -45,15 +46,15 @@
         "LIMEN"
       ],
       "decisions": [
-        "GitHub is the entire infrastructure \u2014 storage, compute (Actions), CDN (raw.githubusercontent)",
+        "GitHub is the entire infrastructure — storage, compute (Actions), CDN (raw.githubusercontent)",
         "MEMORY.md is a compressed brief, not a data dump",
         "State has layers: brief (wisdom), active (projects), avoid (anti-patterns), log (raw)",
         "Write path: GitHub API (direct) or Issue (any AI that can browse)"
       ],
       "pending": [
-        "Test from fresh Claude conversation \u2014 does it read MEMORY.md and pick up context?",
-        "Test from ChatGPT \u2014 paste URL, see if it reads and logs",
-        "Test GitHub Action \u2014 create issue, verify it commits to state"
+        "Test from fresh Claude conversation — does it read MEMORY.md and pick up context?",
+        "Test from ChatGPT — paste URL, see if it reads and logs",
+        "Test GitHub Action — create issue, verify it commits to state"
       ],
       "mistakes": [
         "v0.1-v0.4: built Docker, REST, MCP, systemd, consciousness metrics. Answer was 0 lines of server code.",
@@ -63,13 +64,18 @@
         "Best infrastructure is infrastructure someone else runs. GitHub has storage, compute, CDN, auth, and API. Use it.",
         "MEMORY.md should be optimized for AI context windows. 200 tokens > 2000 tokens.",
         "Separate wisdom (brief) from data (log). AIs read the brief. Log is for reference."
-      ]
+      ],
+      "entry_hash": "61778101e8fdd4a77fca274d07a850eeefbac27cb80f2c02561908a4d10e689d"
     }
   ],
   "scratch": {},
   "meta": {
-    "version": 2,
+    "version": 3,
     "total_conversations": 2,
-    "last_saved": "2026-02-22T23:57:18.607130+00:00Z"
+    "last_saved": "2026-02-22T23:57:18.607130+00:00Z",
+    "human_id": "dennis",
+    "agent_id": "limen-agent",
+    "session_id": "bootstrap-0001",
+    "snapshot_checksum": "985670cbabf45f8fafb4d70f2313c3ee056e452712aef8814e4b94a482381c7c"
   }
 }

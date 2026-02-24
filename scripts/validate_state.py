@@ -7,6 +7,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from scripts.state_core import log_entry_hash, state_snapshot_checksum
+
 ROOT = Path(__file__).resolve().parents[1]
 STATE_PATH = ROOT / "state" / "limen.json"
 
@@ -18,6 +20,16 @@ REQUIRED_TOP_LEVEL = {
     "log": list,
     "scratch": dict,
     "meta": dict,
+}
+
+
+REQUIRED_META_FIELDS = {
+    "version": int,
+    "total_conversations": int,
+    "human_id": str,
+    "agent_id": str,
+    "session_id": str,
+    "snapshot_checksum": str,
 }
 
 
@@ -58,19 +70,28 @@ def validate_state(state: dict) -> None:
         _assert(isinstance(summary, str) and summary.strip(), f"active[{project}] must be non-empty string")
 
     log_entries = state["log"]
+    prev_hash = "GENESIS"
     for i, entry in enumerate(log_entries):
         _assert(isinstance(entry, dict), f"log[{i}] must be an object")
-        for field in ("timestamp", "summary"):
+        for field in ("timestamp", "summary", "entry_hash"):
             _assert(field in entry and isinstance(entry[field], str), f"log[{i}].{field} must be a string")
         _validate_timestamp(entry["timestamp"], f"log[{i}].timestamp")
+        expected_hash = log_entry_hash(prev_hash, entry)
+        _assert(entry["entry_hash"] == expected_hash, f"log[{i}].entry_hash does not match chain")
+        prev_hash = entry["entry_hash"]
 
     meta = state["meta"]
-    _assert("version" in meta and isinstance(meta["version"], int), "meta.version must be an integer")
-    _assert("total_conversations" in meta and isinstance(meta["total_conversations"], int), "meta.total_conversations must be int")
+    for field, expected_type in REQUIRED_META_FIELDS.items():
+        _assert(field in meta and isinstance(meta[field], expected_type), f"meta.{field} must be {expected_type.__name__}")
     _assert(meta["total_conversations"] >= len(log_entries), "meta.total_conversations must be >= len(log)")
+    for field in ("human_id", "agent_id", "session_id"):
+        _assert(meta[field].strip() != "", f"meta.{field} must be non-empty")
     if "last_saved" in meta:
         _assert(isinstance(meta["last_saved"], str), "meta.last_saved must be a string")
         _validate_timestamp(meta["last_saved"], "meta.last_saved")
+
+    checksum = state_snapshot_checksum(state)
+    _assert(meta["snapshot_checksum"] == checksum, "meta.snapshot_checksum mismatch")
 
 
 def main() -> int:
