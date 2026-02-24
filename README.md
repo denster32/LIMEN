@@ -49,5 +49,27 @@ make check         # full check + ensure MEMORY.md is up-to-date
 - Store structured truth (`state/limen.json`) and generated context (`MEMORY.md`) separately.
 - Prefer deterministic scripts + CI over manual edits.
 
+## Gaps to close for robust long-term local persistence
+If your goal is local-first continuity (including intermittent/offline machines), these are the practical missing pieces:
+
+1. **Identity continuity for the human and agent process**
+   - Add stable IDs in `meta` (e.g., `human_id`, `agent_id`, `session_id`) so different clients can prove they are appending to the same life-stream.
+2. **Conflict-safe writes**
+   - Add optimistic concurrency checks (`sha` compare on GitHub Contents API) plus merge policy for concurrent updates.
+3. **Tamper and drift detection**
+   - Add append-only hash chaining for `log` entries and periodic snapshot checksums.
+4. **Recovery and portability**
+   - Add encrypted local export/import so memory survives account loss or service outages.
+5. **Evaluation loop**
+   - Add tests that measure recall quality (does model recover active/pending/avoid correctly after a cold start?).
+
+## Occasional local computer mode (intermittent connectivity)
+Use a local queue and delayed sync model:
+
+- Write all events first to a local journal file.
+- When online, reconcile local journal into `state/limen.json` and regenerate `MEMORY.md`.
+- Resolve conflicts by deterministic merge rules (latest timestamp + explicit human override).
+- Keep the read path stable (`MEMORY.md` URL) so any model can still rehydrate quickly.
+
 ## License
 LGPL-2.1
