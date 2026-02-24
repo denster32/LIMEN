@@ -66,9 +66,20 @@
       ]
     }
   ],
-  "scratch": {},
+  "concepts": {},
+  "distilled": {
+    "last_run": null,
+    "top_concepts": [],
+    "session_count": 0,
+    "trajectory": ""
+  },
+  "scratch": {
+    "hypotheses": [],
+    "questions": [],
+    "threads": {}
+  },
   "meta": {
-    "version": 2,
+    "version": 3,
     "total_conversations": 2,
     "last_saved": "2026-02-22T23:57:18.607130+00:00Z"
   }

@@ -14,7 +14,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate
         run: |
-          python3 -c "
+          python3 << 'EOF'
 import json
 
 with open('state/limen.json') as f:
@@ -29,6 +29,13 @@ if s.get('active'):
         md += f'- **{name}** — {desc}\n'
     md += '\n'
 
+# Distilled concepts — the feedback loop made visible
+distilled = s.get('distilled', {})
+top = distilled.get('top_concepts', [])
+if top:
+    md += '## Recurring Themes\n'
+    md += ', '.join(top[:8]) + '\n\n'
+
 if s.get('pending'):
     md += '## Pending\n'
     for p in s['pending']:
@@ -36,7 +43,7 @@ if s.get('pending'):
     md += '\n'
 
 if s.get('avoid'):
-    md += '## Don\'t\n'
+    md += "## Don't\n"
     for a in s['avoid']:
         md += f'- {a}\n'
     md += '\n'
@@ -45,13 +52,21 @@ if s.get('log'):
     last = s['log'][-1]
     md += f'## Last Session\n{last["summary"]}\n\n'
 
+trajectory = distilled.get('trajectory', '')
+sessions = distilled.get('session_count', s['meta'].get('total_conversations', 0))
+
 md += '---\n'
-md += f'*Updated {s["meta"]["last_saved"][:10]}. Full log: state/limen.json.*\n'
+md += f'*{sessions} sessions logged'
+if trajectory:
+    md += f'. {trajectory}'
+md += f'. Updated {s["meta"]["last_saved"][:10]}.*\n'
+md += '*Read: MEMORY.md. Write: issue titled `LIMEN: summary` or `LIMEN-UPDATE: field`. Full log: state/limen.json.*\n'
 
 with open('MEMORY.md', 'w') as f:
     f.write(md)
 print(f'Generated: {len(md)} chars')
-"
+EOF
+
       - name: Commit
         run: |
           git config user.name "LIMEN"

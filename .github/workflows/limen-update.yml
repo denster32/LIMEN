@@ -1,0 +1,104 @@
+name: LIMEN Update
+on:
+  issues:
+    types: [opened]
+
+# Update non-log fields directly via issue.
+# Issue title: "LIMEN-UPDATE: <field>"
+# Fields: brief | avoid | active:<Project> | active-remove:<Project> | pending-done | scratch
+
+jobs:
+  update:
+    if: startsWith(github.event.issue.title, 'LIMEN-UPDATE:')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply update
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          python3 << 'EOF'
+import json, os, datetime
+
+title = os.environ.get('ISSUE_TITLE', '')
+body = os.environ.get('ISSUE_BODY', '').strip()
+field = title.replace('LIMEN-UPDATE:', '', 1).strip().lower()
+
+with open('state/limen.json') as f:
+    state = json.load(f)
+
+applied = False
+
+if field == 'brief':
+    state['brief'] = body
+    print(f'Updated brief')
+    applied = True
+
+elif field == 'avoid':
+    items = [x.strip() for x in body.split('\n') if x.strip() and not x.strip().startswith('#')]
+    state['avoid'] = items
+    print(f'Updated avoid: {len(items)} items')
+    applied = True
+
+elif field.startswith('active:'):
+    project = field.split(':', 1)[1].strip()
+    # Restore original case from body header if present
+    state['active'][project] = body
+    print(f'Updated active.{project}')
+    applied = True
+
+elif field.startswith('active-remove:'):
+    project = field.split(':', 1)[1].strip()
+    # Case-insensitive removal
+    matches = [k for k in state['active'] if k.lower() == project]
+    for k in matches:
+        del state['active'][k]
+    print(f'Removed active: {matches}')
+    applied = True
+
+elif field == 'pending-done':
+    done = [x.strip().lstrip('-').strip() for x in body.split('\n') if x.strip()]
+    before = len(state['pending'])
+    state['pending'] = [p for p in state['pending'] if p not in done]
+    print(f'Cleared {before - len(state["pending"])} pending items')
+    applied = True
+
+elif field == 'scratch':
+    # key: value pairs, one per line. Blank value removes key.
+    for line in body.split('\n'):
+        line = line.strip()
+        if ':' in line:
+            k, v = line.split(':', 1)
+            k, v = k.strip(), v.strip()
+            if v:
+                state['scratch'][k] = v
+            else:
+                state['scratch'].pop(k, None)
+    print(f'Updated scratch')
+    applied = True
+
+else:
+    print(f'Unknown field: {field}. Valid: brief, avoid, active:<Name>, active-remove:<Name>, pending-done, scratch')
+
+if applied:
+    state['meta']['last_saved'] = datetime.datetime.now(datetime.UTC).isoformat() + 'Z'
+    with open('state/limen.json', 'w') as f:
+        json.dump(state, f, indent=2)
+EOF
+
+      - name: Commit
+        run: |
+          git config user.name "LIMEN"
+          git config user.email "limen@users.noreply.github.com"
+          git add state/limen.json
+          git diff --cached --quiet || (git commit -m "update: ${{ github.event.issue.title }}" && git push)
+      - name: Close issue
+        run: gh issue close ${{ github.event.issue.number }} --comment "Updated."
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -14,12 +14,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Parse and commit
+      - name: Parse and append log entry
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
-          python3 -c "
+          python3 << 'EOF'
 import json, os, datetime
 
 title = os.environ.get('ISSUE_TITLE', '').replace('LIMEN: ', '', 1)
@@ -46,7 +46,7 @@ state['log'] = state['log'][-200:]
 state['meta']['total_conversations'] = len(state['log'])
 state['meta']['last_saved'] = entry['timestamp']
 
-# Add any new pending items
+# Merge new pending items (deduplicated)
 for p in entry.get('pending', []):
     if p not in state['pending']:
         state['pending'].append(p)
@@ -55,7 +55,70 @@ with open('state/limen.json', 'w') as f:
     json.dump(state, f, indent=2)
 
 print(f'Logged: {title}')
-"
+EOF
+
+      - name: Distill concepts from log
+        run: |
+          python3 << 'EOF'
+import json, re, datetime
+from collections import Counter
+
+with open('state/limen.json') as f:
+    state = json.load(f)
+
+# Collect all meaningful text across the full log
+texts = []
+for entry in state['log']:
+    texts.extend(entry.get('decisions', []))
+    texts.extend(entry.get('insights', []))
+    texts.extend(entry.get('mistakes', []))
+    if entry.get('summary'):
+        texts.append(entry['summary'])
+
+# Minimal stop words — keep domain terms
+stop = {
+    'the','a','an','and','or','but','in','on','at','to','for','of','with','by',
+    'from','is','was','are','were','be','been','have','has','had','do','does',
+    'did','will','would','could','should','this','that','it','its','not','no',
+    'any','all','just','more','when','what','which','who','how','than','then',
+    'they','them','their','there','here','we','he','she','you','i','me','my',
+    'your','our','his','her','also','into','about','after','before','dont'
+}
+
+counts = Counter()
+for text in texts:
+    words = re.findall(r'\b[a-z][a-z]+\b', text.lower())
+    counts.update(w for w in words if w not in stop and len(w) > 3)
+
+# Update concepts map (top 25, sorted by frequency)
+state['concepts'] = {
+    w: {'count': c}
+    for w, c in counts.most_common(25)
+}
+
+# Update distilled section
+now = datetime.datetime.now(datetime.UTC).isoformat() + 'Z'
+state.setdefault('distilled', {})
+state['distilled']['last_run'] = now
+state['distilled']['top_concepts'] = [w for w, _ in counts.most_common(10)]
+state['distilled']['session_count'] = len(state['log'])
+
+# Trajectory: recent velocity (sessions in last 7 days)
+cutoff = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=7)
+recent = sum(
+    1 for e in state['log']
+    if e.get('timestamp') and
+       datetime.datetime.fromisoformat(e['timestamp'].rstrip('Z').replace('+00:00', ''))
+       .replace(tzinfo=datetime.timezone.utc) > cutoff
+)
+state['distilled']['trajectory'] = f'{recent} sessions in last 7 days'
+
+with open('state/limen.json', 'w') as f:
+    json.dump(state, f, indent=2)
+
+print(f'Distilled {len(state["log"])} entries → top concepts: {state["distilled"]["top_concepts"][:5]}')
+EOF
+
       - name: Commit
         run: |
           git config user.name "LIMEN"
