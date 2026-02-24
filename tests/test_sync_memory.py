@@ -12,7 +12,13 @@ class SyncMemoryTests(unittest.TestCase):
             "avoid": ["bad"],
             "log": [{"summary": "did work"}],
             "scratch": {},
-            "meta": {"last_saved": "2026-01-01T12:00:00Z"},
+            "meta": {
+                "last_saved": "2026-01-01T12:00:00Z",
+                "human_id": "h1",
+                "agent_id": "a1",
+                "session_id": "s1",
+                "state_checksum": "abc123",
+            },
         }
 
         output = render_memory(state)
@@ -23,6 +29,7 @@ class SyncMemoryTests(unittest.TestCase):
         self.assertIn("## Pending", output)
         self.assertIn("## Don't", output)
         self.assertIn("## Last Session", output)
+        self.assertIn("## Identity", output)
         self.assertIn("Updated 2026-01-01", output)
 
 

@@ -14,7 +14,9 @@ LIMEN keeps long-term context in a repo so any model can load it from a URL and 
 2. Get a GitHub token with repo write access.
 3. Point your AI to:
    - `https://raw.githubusercontent.com/<you>/LIMEN/main/MEMORY.md`
-4. Update `state/limen.json` directly or through API/issue workflows.
+4. Validate and sync:
+   - `make migrate-state`
+   - `make check`
 
 ## Data model
 The canonical format is defined in `state/schema.json`.
@@ -25,51 +27,71 @@ The canonical format is defined in `state/schema.json`.
   "active": {"Project": "status"},
   "pending": ["next action"],
   "avoid": ["anti-pattern"],
-  "log": [{"timestamp": "ISO-8601", "summary": "session recap"}],
+  "log": [
+    {
+      "entry_id": "entry-000001",
+      "timestamp": "ISO-8601",
+      "summary": "session recap",
+      "prev_hash": "GENESIS|<sha256>",
+      "hash": "<sha256>"
+    }
+  ],
   "scratch": {},
-  "meta": {"version": 2, "total_conversations": 1, "last_saved": "ISO-8601"}
+  "meta": {
+    "version": 2,
+    "total_conversations": 1,
+    "last_saved": "ISO-8601",
+    "human_id": "stable-id",
+    "agent_id": "stable-id",
+    "session_id": "stable-id",
+    "state_checksum": "sha256"
+  }
 }
 ```
 
 ## Local workflow
 ```bash
-make validate      # validate state shape/invariants
-make sync-memory   # regenerate MEMORY.md from state
-make test          # run unit tests
-make check         # full check + ensure MEMORY.md is up-to-date
+make migrate-state  # backfill IDs + integrity hashes/checksum
+make validate       # validate state shape/invariants/integrity
+make sync-memory    # regenerate MEMORY.md from state
+make recall         # verify MEMORY.md covers recall targets
+make test           # run unit tests
+make check          # full check + ensure MEMORY.md is up-to-date
 ```
 
-## Write options
-1. **GitHub API (recommended):** `PUT /repos/<you>/LIMEN/contents/state/limen.json`
-2. **Manual commit:** edit `state/limen.json`, run `make sync-memory`, commit.
-3. **Issue workflow (optional):** create issue titled `LIMEN: summary` and process it with automation.
+## Conflict-safe writes (GitHub API)
+Use optimistic concurrency with SHA compare:
 
-## Design principles
-- Keep infra minimal.
-- Store structured truth (`state/limen.json`) and generated context (`MEMORY.md`) separately.
-- Prefer deterministic scripts + CI over manual edits.
+```bash
+python3 scripts/push_state_github.py \
+  --owner <you> --repo LIMEN --token $GITHUB_TOKEN --branch main
+```
 
-## Gaps to close for robust long-term local persistence
-If your goal is local-first continuity (including intermittent/offline machines), these are the practical missing pieces:
+This reads the remote file SHA and submits a `PUT /contents` update with that SHA, preventing blind overwrite when concurrent writers update state first.
 
-1. **Identity continuity for the human and agent process**
-   - Add stable IDs in `meta` (e.g., `human_id`, `agent_id`, `session_id`) so different clients can prove they are appending to the same life-stream.
-2. **Conflict-safe writes**
-   - Add optimistic concurrency checks (`sha` compare on GitHub Contents API) plus merge policy for concurrent updates.
-3. **Tamper and drift detection**
-   - Add append-only hash chaining for `log` entries and periodic snapshot checksums.
-4. **Recovery and portability**
-   - Add encrypted local export/import so memory survives account loss or service outages.
-5. **Evaluation loop**
-   - Add tests that measure recall quality (does model recover active/pending/avoid correctly after a cold start?).
+## Offline/intermittent mode
+Queue local journal events while offline, then reconcile when online.
 
-## Occasional local computer mode (intermittent connectivity)
-Use a local queue and delayed sync model:
+```bash
+python3 scripts/local_journal.py append --summary "Did useful work" --project LIMEN
+python3 scripts/local_journal.py sync
+make sync-memory
+```
 
-- Write all events first to a local journal file.
-- When online, reconcile local journal into `state/limen.json` and regenerate `MEMORY.md`.
-- Resolve conflicts by deterministic merge rules (latest timestamp + explicit human override).
-- Keep the read path stable (`MEMORY.md` URL) so any model can still rehydrate quickly.
+Merge policy: deterministic timestamp ordering, with optional `--human-override` to explicitly update active project status.
+
+## Recovery and portability
+Create authenticated encrypted backups and restore later:
+
+```bash
+python3 scripts/export_import.py export --output backups/limen.enc.json --passphrase "$LIMEN_BACKUP_PASSPHRASE"
+python3 scripts/export_import.py import --input backups/limen.enc.json --passphrase "$LIMEN_BACKUP_PASSPHRASE"
+```
+
+## Deployment readiness
+- CI workflow (`.github/workflows/ci.yml`) runs `make check` on push/PR.
+- `make check` enforces schema/invariants, memory sync consistency, recall quality threshold, and unit tests.
+- Deterministic hash-chain and snapshot checksum provide tamper/drift detection.
 
 ## License
 LGPL-2.1
