@@ -15,16 +15,17 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["timestamp", "summary"],
+        "required": ["timestamp", "summary", "entry_hash"],
         "properties": {
           "timestamp": {"type": "string", "format": "date-time"},
           "summary": {"type": "string"},
+          "source": {"type": "string"},
+          "entry_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
           "projects": {"type": "array", "items": {"type": "string"}},
           "decisions": {"type": "array", "items": {"type": "string"}},
           "pending": {"type": "array", "items": {"type": "string"}},
           "mistakes": {"type": "array", "items": {"type": "string"}},
-          "insights": {"type": "array", "items": {"type": "string"}
-          }
+          "insights": {"type": "array", "items": {"type": "string"}}
         },
         "additionalProperties": true
       }
@@ -32,10 +33,14 @@
     "scratch": {"type": "object"},
     "meta": {
       "type": "object",
-      "required": ["version", "total_conversations"],
+      "required": ["version", "total_conversations", "human_id", "agent_id", "session_id", "snapshot_checksum"],
       "properties": {
         "version": {"type": "integer", "minimum": 1},
         "total_conversations": {"type": "integer", "minimum": 0},
+        "human_id": {"type": "string", "minLength": 1},
+        "agent_id": {"type": "string", "minLength": 1},
+        "session_id": {"type": "string", "minLength": 1},
+        "snapshot_checksum": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
         "last_saved": {"type": "string", "format": "date-time"}
       },
       "additionalProperties": true
