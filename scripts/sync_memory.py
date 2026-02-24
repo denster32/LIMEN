@@ -4,8 +4,15 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.state_tools import normalize_iso8601
 
 ROOT = Path(__file__).resolve().parents[1]
 STATE_PATH = ROOT / "state" / "limen.json"
@@ -16,12 +23,7 @@ def _fmt_date(iso_timestamp: str | None) -> str:
     if not iso_timestamp:
         return datetime.now().strftime("%Y-%m-%d")
     try:
-        normalized = iso_timestamp
-        if normalized.endswith("Z") and ("+" in normalized[10:] or "-" in normalized[10:]):
-            normalized = normalized[:-1]
-        if normalized.endswith("Z"):
-            normalized = normalized[:-1] + "+00:00"
-        dt = datetime.fromisoformat(normalized)
+        dt = datetime.fromisoformat(normalize_iso8601(iso_timestamp))
         return dt.strftime("%Y-%m-%d")
     except ValueError:
         return iso_timestamp[:10]
@@ -62,8 +64,13 @@ def render_memory(state: dict) -> str:
 
     lines += [
         "",
+        "## Identity",
+        f"- Human ID: `{meta.get('human_id', 'unset')}`",
+        f"- Agent ID: `{meta.get('agent_id', 'unset')}`",
+        f"- Session ID: `{meta.get('session_id', 'unset')}`",
+        "",
         "---",
-        f"*Updated {_fmt_date(meta.get('last_saved'))}. Full log: state/limen.json. Write back via GitHub API or issue titled `LIMEN: summary`.*",
+        f"*Updated {_fmt_date(meta.get('last_saved'))}. Integrity checksum: `{meta.get('state_checksum', 'unknown')}`. Full log: state/limen.json.*",
         "",
     ]
 
