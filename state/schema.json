@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LIMEN State",
+  "type": "object",
+  "required": ["brief", "active", "pending", "avoid", "log", "scratch", "meta"],
+  "properties": {
+    "brief": {"type": "string", "minLength": 1},
+    "active": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "pending": {"type": "array", "items": {"type": "string"}},
+    "avoid": {"type": "array", "items": {"type": "string"}},
+    "log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["timestamp", "summary"],
+        "properties": {
+          "timestamp": {"type": "string", "format": "date-time"},
+          "summary": {"type": "string"},
+          "projects": {"type": "array", "items": {"type": "string"}},
+          "decisions": {"type": "array", "items": {"type": "string"}},
+          "pending": {"type": "array", "items": {"type": "string"}},
+          "mistakes": {"type": "array", "items": {"type": "string"}},
+          "insights": {"type": "array", "items": {"type": "string"}
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "scratch": {"type": "object"},
+    "meta": {
+      "type": "object",
+      "required": ["version", "total_conversations"],
+      "properties": {
+        "version": {"type": "integer", "minimum": 1},
+        "total_conversations": {"type": "integer", "minimum": 0},
+        "last_saved": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
