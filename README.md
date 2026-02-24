@@ -25,51 +25,79 @@ The canonical format is defined in `state/schema.json`.
   "active": {"Project": "status"},
   "pending": ["next action"],
   "avoid": ["anti-pattern"],
-  "log": [{"timestamp": "ISO-8601", "summary": "session recap"}],
+  "log": [
+    {
+      "timestamp": "ISO-8601",
+      "summary": "session recap",
+      "prev_hash": "GENESIS|<sha256>",
+      "entry_hash": "<sha256>"
+    }
+  ],
   "scratch": {},
-  "meta": {"version": 2, "total_conversations": 1, "last_saved": "ISO-8601"}
+  "meta": {
+    "version": 2,
+    "human_id": "stable-human-id",
+    "agent_id": "stable-agent-id",
+    "session_id": "session-identifier",
+    "total_conversations": 1,
+    "last_saved": "ISO-8601",
+    "snapshot_checksum": "<sha256>"
+  }
 }
 ```
 
 ## Local workflow
 ```bash
-make validate      # validate state shape/invariants
-make sync-memory   # regenerate MEMORY.md from state
-make test          # run unit tests
-make check         # full check + ensure MEMORY.md is up-to-date
+make validate         # validate state shape/invariants + integrity chain
+make sync-memory      # regenerate MEMORY.md from state
+make test             # run unit tests
+make check            # full check + ensure MEMORY.md is up-to-date
+make reconcile-journal  # apply offline queued events into state
 ```
 
-## Write options
-1. **GitHub API (recommended):** `PUT /repos/<you>/LIMEN/contents/state/limen.json`
+## Deploy-ready write options
+1. **GitHub API with optimistic concurrency (recommended):**
+   ```bash
+   python3 -m scripts.github_sync --owner <you> --repo LIMEN --branch main --token "$GITHUB_TOKEN"
+   ```
+   - Fetches remote `sha`
+   - Merges deterministic fields
+   - Writes with `sha` guard to prevent blind overwrite
 2. **Manual commit:** edit `state/limen.json`, run `make sync-memory`, commit.
 3. **Issue workflow (optional):** create issue titled `LIMEN: summary` and process it with automation.
 
-## Design principles
-- Keep infra minimal.
-- Store structured truth (`state/limen.json`) and generated context (`MEMORY.md`) separately.
-- Prefer deterministic scripts + CI over manual edits.
+## Completed robustness plan
+The reliability gaps are now implemented:
 
-## Gaps to close for robust long-term local persistence
-If your goal is local-first continuity (including intermittent/offline machines), these are the practical missing pieces:
-
-1. **Identity continuity for the human and agent process**
-   - Add stable IDs in `meta` (e.g., `human_id`, `agent_id`, `session_id`) so different clients can prove they are appending to the same life-stream.
+1. **Identity continuity**
+   - `meta.human_id`, `meta.agent_id`, `meta.session_id` are required and validated.
 2. **Conflict-safe writes**
-   - Add optimistic concurrency checks (`sha` compare on GitHub Contents API) plus merge policy for concurrent updates.
+   - `scripts/github_sync.py` performs optimistic concurrency using GitHub Contents API `sha` checks with deterministic merge behavior.
 3. **Tamper and drift detection**
-   - Add append-only hash chaining for `log` entries and periodic snapshot checksums.
+   - `log` entries are hash chained (`prev_hash` + `entry_hash`).
+   - `meta.snapshot_checksum` protects high-level state against drift.
 4. **Recovery and portability**
-   - Add encrypted local export/import so memory survives account loss or service outages.
+   - `scripts/backup_state.py` provides encrypted export/import with OpenSSL AES-256 + PBKDF2.
 5. **Evaluation loop**
-   - Add tests that measure recall quality (does model recover active/pending/avoid correctly after a cold start?).
+   - Tests validate memory rendering and recall fields from a cold-start style state payload.
+6. **Intermittent local/offline mode**
+   - `scripts/local_journal.py queue` appends events locally.
+   - `scripts/local_journal.py reconcile` deterministically applies queued events when online.
 
-## Occasional local computer mode (intermittent connectivity)
-Use a local queue and delayed sync model:
+## Operational commands
+```bash
+# Queue local/offline event
+python3 -m scripts.local_journal queue --summary "Spoke with model, decided X"
 
-- Write all events first to a local journal file.
-- When online, reconcile local journal into `state/limen.json` and regenerate `MEMORY.md`.
-- Resolve conflicts by deterministic merge rules (latest timestamp + explicit human override).
-- Keep the read path stable (`MEMORY.md` URL) so any model can still rehydrate quickly.
+# Reconcile local queue back into canonical state
+python3 -m scripts.local_journal reconcile
+
+# Encrypted backup/export
+python3 -m scripts.backup_state export --file backups/limen.enc --passphrase "<strong-passphrase>"
+
+# Encrypted restore/import
+python3 -m scripts.backup_state import --file backups/limen.enc --passphrase "<strong-passphrase>"
+```
 
 ## License
 LGPL-2.1

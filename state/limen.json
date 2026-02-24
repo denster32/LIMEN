@@ -36,7 +36,9 @@
       ],
       "insights": [
         "Simplest version is a file at a URL"
-      ]
+      ],
+      "prev_hash": "GENESIS",
+      "entry_hash": "ba8dad478a768948985665807f76d1b52d319310c8d781afeaf9d58c14e715a9"
     },
     {
       "timestamp": "2026-02-22T23:57:18.607112+00:00Z",
@@ -45,15 +47,15 @@
         "LIMEN"
       ],
       "decisions": [
-        "GitHub is the entire infrastructure \u2014 storage, compute (Actions), CDN (raw.githubusercontent)",
+        "GitHub is the entire infrastructure — storage, compute (Actions), CDN (raw.githubusercontent)",
         "MEMORY.md is a compressed brief, not a data dump",
         "State has layers: brief (wisdom), active (projects), avoid (anti-patterns), log (raw)",
         "Write path: GitHub API (direct) or Issue (any AI that can browse)"
       ],
       "pending": [
-        "Test from fresh Claude conversation \u2014 does it read MEMORY.md and pick up context?",
-        "Test from ChatGPT \u2014 paste URL, see if it reads and logs",
-        "Test GitHub Action \u2014 create issue, verify it commits to state"
+        "Test from fresh Claude conversation — does it read MEMORY.md and pick up context?",
+        "Test from ChatGPT — paste URL, see if it reads and logs",
+        "Test GitHub Action — create issue, verify it commits to state"
       ],
       "mistakes": [
         "v0.1-v0.4: built Docker, REST, MCP, systemd, consciousness metrics. Answer was 0 lines of server code.",
@@ -63,13 +65,25 @@
         "Best infrastructure is infrastructure someone else runs. GitHub has storage, compute, CDN, auth, and API. Use it.",
         "MEMORY.md should be optimized for AI context windows. 200 tokens > 2000 tokens.",
         "Separate wisdom (brief) from data (log). AIs read the brief. Log is for reference."
-      ]
+      ],
+      "prev_hash": "ba8dad478a768948985665807f76d1b52d319310c8d781afeaf9d58c14e715a9",
+      "entry_hash": "0cb70930b0c0f75c33e9e6d6215b881ac9248d49303a7afe7d115cac3fdcb8aa"
+    },
+    {
+      "timestamp": "2026-02-24T14:42:11Z",
+      "summary": "offline test event",
+      "prev_hash": "0cb70930b0c0f75c33e9e6d6215b881ac9248d49303a7afe7d115cac3fdcb8aa",
+      "entry_hash": "a5da2924e43ceea3baad800d3375ba15cb371adc2a835d2e029f6c834b4b859c"
     }
   ],
   "scratch": {},
   "meta": {
     "version": 2,
-    "total_conversations": 2,
-    "last_saved": "2026-02-22T23:57:18.607130+00:00Z"
+    "total_conversations": 3,
+    "last_saved": "2026-02-24T14:42:12Z",
+    "human_id": "dennis",
+    "agent_id": "limen-agent",
+    "session_id": "bootstrap",
+    "snapshot_checksum": "db05604a60fc0d2691f5bf82f9549e05910d388a7a81d306424a0802a3b237a0"
   }
 }
