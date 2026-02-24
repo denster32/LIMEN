@@ -9,12 +9,28 @@ LIMEN keeps long-term context in a repo so any model can load it from a URL and 
 - **Write path:** `state/limen.json` (source-of-truth data)
 - **Automation:** scripts and CI keep both files consistent
 
+## What is now production-ready
+The roadmap has been implemented end-to-end for robust local-first continuity:
+
+1. **Identity continuity**
+   - `meta` now includes stable IDs: `human_id`, `agent_id`, `session_id`.
+2. **Conflict-safe writes**
+   - `scripts/push_state_github.py` uses Contents API with SHA compare (optimistic concurrency).
+3. **Tamper and drift detection**
+   - Log entries use append-only hash chaining (`prev_hash`, `entry_hash`, `entry_id`).
+4. **Recovery and portability**
+   - `scripts/backup_state.py` supports encrypted export/import for account-loss recovery.
+5. **Evaluation loop**
+   - `scripts/evaluate_recall.py` checks that MEMORY.md captures active/pending/avoid/last-session recall.
+6. **Offline / intermittent mode**
+   - `scripts/reconcile_journal.py` merges `state/local_journal.jsonl` with deterministic rules and optional override.
+
 ## Quick start
 1. Fork this repo.
 2. Get a GitHub token with repo write access.
 3. Point your AI to:
    - `https://raw.githubusercontent.com/<you>/LIMEN/main/MEMORY.md`
-4. Update `state/limen.json` directly or through API/issue workflows.
+4. Update `state/limen.json` directly, via issue workflow, or local journal + reconcile.
 
 ## Data model
 The canonical format is defined in `state/schema.json`.
@@ -25,51 +41,68 @@ The canonical format is defined in `state/schema.json`.
   "active": {"Project": "status"},
   "pending": ["next action"],
   "avoid": ["anti-pattern"],
-  "log": [{"timestamp": "ISO-8601", "summary": "session recap"}],
+  "log": [{
+    "timestamp": "ISO-8601",
+    "summary": "session recap",
+    "entry_id": "stable id",
+    "prev_hash": "GENESIS-or-previous",
+    "entry_hash": "sha256"
+  }],
   "scratch": {},
-  "meta": {"version": 2, "total_conversations": 1, "last_saved": "ISO-8601"}
+  "meta": {
+    "version": 2,
+    "human_id": "stable human id",
+    "agent_id": "stable agent id",
+    "session_id": "stable session id",
+    "total_conversations": 1,
+    "last_saved": "ISO-8601"
+  }
 }
 ```
 
 ## Local workflow
 ```bash
-make validate      # validate state shape/invariants
-make sync-memory   # regenerate MEMORY.md from state
-make test          # run unit tests
-make check         # full check + ensure MEMORY.md is up-to-date
+make validate         # validate state shape/invariants + hash chain
+make sync-memory      # regenerate MEMORY.md from state
+make test             # run unit tests
+make recall           # recall quality check for cold-start memory
+make check            # full check + ensure MEMORY.md is up-to-date
 ```
 
-## Write options
-1. **GitHub API (recommended):** `PUT /repos/<you>/LIMEN/contents/state/limen.json`
-2. **Manual commit:** edit `state/limen.json`, run `make sync-memory`, commit.
-3. **Issue workflow (optional):** create issue titled `LIMEN: summary` and process it with automation.
+## Offline journal workflow
+```bash
+# append JSON lines to state/local_journal.jsonl (one event per line)
+python3 -m scripts.reconcile_journal
+python3 -m scripts.sync_memory
+```
 
-## Design principles
-- Keep infra minimal.
-- Store structured truth (`state/limen.json`) and generated context (`MEMORY.md`) separately.
-- Prefer deterministic scripts + CI over manual edits.
+Journal event example:
+```json
+{"timestamp":"2026-02-24T00:00:00Z","summary":"offline session","pending":["next step"],"override":false}
+```
 
-## Gaps to close for robust long-term local persistence
-If your goal is local-first continuity (including intermittent/offline machines), these are the practical missing pieces:
+For explicit human override, set `"override": true` and include `"active"` and/or `"pending_replace"`.
 
-1. **Identity continuity for the human and agent process**
-   - Add stable IDs in `meta` (e.g., `human_id`, `agent_id`, `session_id`) so different clients can prove they are appending to the same life-stream.
-2. **Conflict-safe writes**
-   - Add optimistic concurrency checks (`sha` compare on GitHub Contents API) plus merge policy for concurrent updates.
-3. **Tamper and drift detection**
-   - Add append-only hash chaining for `log` entries and periodic snapshot checksums.
-4. **Recovery and portability**
-   - Add encrypted local export/import so memory survives account loss or service outages.
-5. **Evaluation loop**
-   - Add tests that measure recall quality (does model recover active/pending/avoid correctly after a cold start?).
+## GitHub API safe write workflow
+```bash
+python3 -m scripts.push_state_github \
+  --repo <owner>/LIMEN \
+  --token $GITHUB_TOKEN \
+  --branch main \
+  --expected-sha <current_sha>
+```
 
-## Occasional local computer mode (intermittent connectivity)
-Use a local queue and delayed sync model:
+## Encrypted backup / restore
+```bash
+python3 -m scripts.backup_state export --output limen.backup.json --password '<passphrase>'
+python3 -m scripts.backup_state import --input limen.backup.json --password '<passphrase>'
+```
 
-- Write all events first to a local journal file.
-- When online, reconcile local journal into `state/limen.json` and regenerate `MEMORY.md`.
-- Resolve conflicts by deterministic merge rules (latest timestamp + explicit human override).
-- Keep the read path stable (`MEMORY.md` URL) so any model can still rehydrate quickly.
+## Deployment readiness checklist
+- [x] CI quality gate (`make check`) on push/PR.
+- [x] Issue ingestion workflow appends validated log entries and syncs memory.
+- [x] Memory regeneration workflow validates state before commit.
+- [x] Deterministic scripts only; no service runtime required.
 
 ## License
 LGPL-2.1

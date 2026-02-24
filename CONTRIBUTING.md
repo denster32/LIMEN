@@ -12,3 +12,5 @@
 ## Project constraints
 - No servers required.
 - Avoid adding heavyweight dependencies when stdlib can do the job.
+- Preserve hash-chain integrity for `log` entries.
+- Keep `meta.human_id`, `meta.agent_id`, and `meta.session_id` stable across updates.

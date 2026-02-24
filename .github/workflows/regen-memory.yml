@@ -12,46 +12,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Generate
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Generate and validate
         run: |
-          python3 -c "
-import json
-
-with open('state/limen.json') as f:
-    s = json.load(f)
-
-md = '# Memory\n\n'
-md += s.get('brief', '') + '\n\n'
-
-if s.get('active'):
-    md += '## Working On\n'
-    for name, desc in s['active'].items():
-        md += f'- **{name}** — {desc}\n'
-    md += '\n'
-
-if s.get('pending'):
-    md += '## Pending\n'
-    for p in s['pending']:
-        md += f'- {p}\n'
-    md += '\n'
-
-if s.get('avoid'):
-    md += '## Don\'t\n'
-    for a in s['avoid']:
-        md += f'- {a}\n'
-    md += '\n'
-
-if s.get('log'):
-    last = s['log'][-1]
-    md += f'## Last Session\n{last["summary"]}\n\n'
-
-md += '---\n'
-md += f'*Updated {s["meta"]["last_saved"][:10]}. Full log: state/limen.json.*\n'
-
-with open('MEMORY.md', 'w') as f:
-    f.write(md)
-print(f'Generated: {len(md)} chars')
-"
+          python3 -m scripts.sync_memory
+          python3 -m scripts.validate_state
       - name: Commit
         run: |
           git config user.name "LIMEN"
